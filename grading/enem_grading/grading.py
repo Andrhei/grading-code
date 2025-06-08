@@ -1,0 +1,152 @@
+import os
+import json
+import argparse
+# import boto3
+# from botocore.exceptions import ClientError
+
+# API URL configurado em variável de ambiente
+# URL = os.getenv('URL', 'url')
+# # API TOKEN configurado em variável de ambiente
+# TOKEN = os.getenv('TOKEN', 'token')
+# # Nome da tabela configurado em variável de ambiente
+# TABLE_NAME = os.getenv('RESULTS_TABLE', 'table')
+
+# dynamodb = boto3.resource('dynamodb')
+
+def response_status(examId, studentId, stage='correction', status='success', error=None, summary=None, answers=None):
+    return {
+            "examId":         examId,
+            "studentId":      studentId,
+            "stage":          stage,
+            "status":         status,
+            "error":          error,
+            "summary":        summary,
+            "answers":        answers
+        }
+
+def load_json(path):
+    with open(path, 'r', encoding='utf-8') as f:
+        return json.load(f)
+
+def grade_exam(answersKey, studentAnswers):
+
+    if answersKey.get('examId') == studentAnswers.get('examId'):
+    
+        k_map = {int(q['questionNumber']): q['answer'].lower() for q in answersKey.get('answersKey')}
+        a_map = {int(q['questionId']): q['answer'].lower() for q in studentAnswers.get('answers')}
+
+        totalQuestions = len(answersKey.get('answersKey'))
+        correctAnswers = 0
+        details = []
+
+        for questionId, correctQuestion in k_map.items():
+            studentAnswer = a_map.get(questionId)
+            isTrue = (studentAnswer == correctQuestion)
+            if isTrue:
+                correctAnswers += 1
+            details.append({
+                'questionId':       questionId,
+                'studentAnswer':    studentAnswer,
+                'correctQuestion':  correctQuestion,
+                'correct':          isTrue
+            })
+        
+        summary = {
+                'totalQuestions':  totalQuestions,
+                'correctAnswers':  correctAnswers,
+                'wrongAnswers':    totalQuestions - correctAnswers,
+            }
+        answers = details
+        
+        return response_status(examId=studentAnswers.get('examId'),
+                               studentId=studentAnswers.get('studentId'),
+                               summary=summary,
+                               answers=answers)
+    
+    else:
+        return response_status(examId=studentAnswers.get('examId'),
+                               studentId=studentAnswers.get('studentId'),
+                               status="error",
+                               error="Exam not identified!")
+
+def save_to_dynamodb(obj):
+    try:
+        table = dynamodb.Table(TABLE_NAME)
+        table.put_item(Item=obj)
+    except ClientError as e:
+        print(f'Erro ao gravar à correção - {e}')
+    except Exception as e:
+        print(f'Erro para acessar DynamoDB - {e}')
+
+#-----------------------------------INICIO LAMBDA HANDLER-----------------------------------
+# def lambda_handler(event, context):
+#     try:
+#         for record in event.get('Records', []):
+#             try:
+#                 # 'body' é a string JSON enviada para a fila
+#                 body_str = record['body']
+#                 studentAnswers = json.loads(body_str)
+#                 # answersKey = ? # Chamada API Solis
+#             except json.JSONDecodeError as e:
+#                 print(f"Não foi possível decodificar JSON: {e}")
+#             try:
+#                 response = grade_exam(
+#                     answersKey=answersKey,
+#                     studentAnswers=studentAnswers
+#                 )
+#             except Exception as e:
+#                 print(f'Erro na correção da prova - {e}')
+#             try:
+#                 save_to_dynamodb(response)
+#             except Exception as e:
+#                 print(f'Erro ao gravar à correção - {e}')
+#     except Exception as e:
+#                 print(f'Erro ao gravar à correção - {e}')
+#-----------------------------------FIM LAMBDA HANDLER-----------------------------------
+
+def main(answersKey_path, answers_path, output_path=None):
+    try:
+        try:
+            answersKey = load_json(answersKey_path)
+            answers = load_json(answers_path)
+        except Exception as e:
+            print(f'Erro de recuperação dos objetos JSON - {e}')
+        try:
+            response = grade_exam(
+                answersKey=answersKey,  
+                studentAnswers=answers
+            )
+        except Exception as e:
+            print(f'Erro na correção da prova - {e}')
+        try:
+            if output_path:
+                with open(output_path, 'w', encoding='utf-8') as f:
+                    json.dump(response, f, ensure_ascii=False, indent=2)
+                print(f"Resultado gravado em: {output_path}")
+            else:
+                print(json.dumps(response, ensure_ascii=False, indent=2))
+        except Exception as e:
+            print(f'Erro ao gravar à correção - {e}')
+    except Exception as e:
+        print(e)
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(
+        description="Corrige uma prova a partir de arquivos JSON locais."
+    )
+    parser.add_argument(
+        '--answersKey-file', '-k', required=True,
+        help="Caminho para o JSON do gabarito. Ex.: {\"answersKey\": [{\"questionId\": \"1\", \"answer\": \"a\"}, ...]}"
+    )
+    parser.add_argument(
+        '--answers-file', '-a', required=True,
+        help="Caminho para o JSON das respostas do aluno. Ex.: {\"answers\": [{\"questionId\": \"1\", \"answer\": \"b\"}, ...]}"
+    )
+    parser.add_argument(
+        '--output-file', '-o', required=False,
+        help="Caminho para salvar o resultado da correção (JSON). Se omitido, imprime no terminal."
+    )
+    args = parser.parse_args()
+
+    main(args.answersKey_file, args.answers_file, args.output_file)
+

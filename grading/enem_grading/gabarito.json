@@ -1,0 +1,10 @@
+{
+  "examId": "456",
+  "answersKey": [
+    { "questionId": "1", "answer": "a" },
+    { "questionId": "2", "answer": "d" },
+    { "questionId": "3", "answer": "b" },
+    { "questionId": "4", "answer": "c" },
+    { "questionId": "5", "answer": "b" }
+  ]
+}
