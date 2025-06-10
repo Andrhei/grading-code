@@ -3,6 +3,7 @@ import json
 import argparse
 # import boto3
 # from botocore.exceptions import ClientError
+from collections import defaultdict
 
 # API URL configurado em variável de ambiente
 # URL = os.getenv('URL', 'url')
@@ -14,26 +15,47 @@ import argparse
 # dynamodb = boto3.resource('dynamodb')
 
 def response_status(examId, studentId, stage='correction', status='success', error=None, summary=None, answers=None):
-    return {
-            "examId":         examId,
-            "studentId":      studentId,
-            "stage":          stage,
-            "status":         status,
-            "error":          error,
-            "summary":        summary,
-            "answers":        answers
-        }
+    """
+    Gera um dicionário com o status da operação.
+
+    Args:
+        examId (str): ID do exame.
+        studentId (str): ID do estudante.
+        stage (str): Etapa do processo (default: 'correction').
+        status (str): Status da operação (default: 'success').
+        error (str, optional): Mensagem de erro, se houver.
+        summary (dict, optional): Resumo da operação.
+        answers (list, optional): Respostas do estudante.
+
+    Returns:
+        dict: Dicionário com o status da operação.
+    """
+    response = {
+        "examId": examId,
+        "studentId": studentId,
+        "stage": stage,
+        "status": status,
+        "error": error,
+        "summary": summary,
+        "answers": answers,
+    }
+    return {key: value for key, value in response.items() if value is not None}
 
 def load_json(path):
-    with open(path, 'r', encoding='utf-8') as f:
-        return json.load(f)
+    try:
+        with open(path, 'r', encoding='utf-8') as f:
+            return json.load(f)
+    except FileNotFoundError:
+        raise FileNotFoundError(f"Arquivo não encontrado: {path}")
+    except json.JSONDecodeError as e:
+        raise ValueError(f"Erro ao decodificar JSON no arquivo {path}: {e}")
 
 def grade_exam(answersKey, studentAnswers):
 
     if answersKey.get('examId') == studentAnswers.get('examId'):
     
-        k_map = {int(q['questionNumber']): q['answer'].lower() for q in answersKey.get('answersKey')}
-        a_map = {int(q['questionId']): q['answer'].lower() for q in studentAnswers.get('answers')}
+        k_map = defaultdict(lambda: None, {int(q['questionNumber']): q['answer'].lower() for q in answersKey.get('answersKey', [])})
+        a_map = defaultdict(lambda: None, {int(q['questionId']): q['answer'].lower() for q in studentAnswers.get('answers', [])})
 
         totalQuestions = len(answersKey.get('answersKey'))
         correctAnswers = 0
@@ -106,29 +128,26 @@ def save_to_dynamodb(obj):
 
 def main(answersKey_path, answers_path, output_path=None):
     try:
-        try:
-            answersKey = load_json(answersKey_path)
-            answers = load_json(answers_path)
-        except Exception as e:
-            print(f'Erro de recuperação dos objetos JSON - {e}')
-        try:
-            response = grade_exam(
-                answersKey=answersKey,  
-                studentAnswers=answers
-            )
-        except Exception as e:
-            print(f'Erro na correção da prova - {e}')
-        try:
-            if output_path:
-                with open(output_path, 'w', encoding='utf-8') as f:
-                    json.dump(response, f, ensure_ascii=False, indent=2)
-                print(f"Resultado gravado em: {output_path}")
-            else:
-                print(json.dumps(response, ensure_ascii=False, indent=2))
-        except Exception as e:
-            print(f'Erro ao gravar à correção - {e}')
+        answersKey = load_json(answersKey_path)
+        answers = load_json(answers_path)
     except Exception as e:
-        print(e)
+        print(f'Erro de recuperação dos objetos JSON - {e}')
+    try:
+        response = grade_exam(
+            answersKey=answersKey,  
+            studentAnswers=answers
+        )
+    except Exception as e:
+        print(f'Erro na correção da prova - {e}')
+    try:
+        if output_path:
+            with open(output_path, 'w', encoding='utf-8') as f:
+                json.dump(response, f, ensure_ascii=False, indent=2)
+            print(f"Resultado gravado em: {output_path}")
+        else:
+            print(json.dumps(response, ensure_ascii=False, indent=2))
+    except Exception as e:
+        print(f'Erro ao gravar à correção - {e}')
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
