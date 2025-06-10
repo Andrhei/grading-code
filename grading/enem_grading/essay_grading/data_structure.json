@@ -1,0 +1,40 @@
+{
+    "id": "unique_essay_id",
+    "student_id": "unique_student_id",
+    "text": "Full essay text here",
+    "competence": [
+        {
+            "competence_id": "1",
+            "description": "Demonstrar domínio da modalidade escrita formal da língua portuguesa.",
+            "score": 0,
+            "comments": "Feedback for competence 1"
+        },
+        {
+            "competence_id": "2",
+            "description": "Compreender a proposta de redação e aplicar conceitos das várias áreas de conhecimento para desenvolver o tema, dentro dos limites estruturais do texto dissertativo-argumentativo em prosa.",
+            "score": 0,
+            "comments": "Feedback for competence 2"
+        },
+        {
+            "competence_id": "3",
+            "description": "Selecionar, relacionar, organizar e interpretar informações, fatos, opiniões e argumentos em defesa de um ponto de vista.",
+            "score": 0,
+            "comments": "Feedback for competence 3"
+        },
+        {
+            "competence_id": "4",
+            "description": "Demonstrar conhecimento dos mecanismos linguísticos necessários para construção da argumentação.",
+            "score": 0,
+            "comments": "Feedback for competence 4"
+        },
+        {
+            "competence_id": "5",
+            "description": "Elaborar proposta de intervenção para o problema abordado, respeitando os direitos humanos.",
+            "score": 0,
+            "comments": "Feedback for competence 5"
+        }
+    ],
+    "total_score": 0,
+    "grader_id": "unique_grader_id",
+    "grading_date": "YYYY-MM-DD"
+}
