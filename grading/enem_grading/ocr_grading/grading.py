@@ -1,6 +1,7 @@
 import os
 import json
 import argparse
+import logging
 # import boto3
 # from botocore.exceptions import ClientError
 from collections import defaultdict
@@ -127,12 +128,16 @@ def save_to_dynamodb(obj):
 #-----------------------------------FIM LAMBDA HANDLER-----------------------------------
 
 def main(answersKey_path, answers_path, output_path=None):
+    logging.basicConfig(level=logging.INFO)
+    logging.info("Inicializando o processo de correção...")
     try:
+        logging.info("Leitura do gabarito e respostas do aluno...")
         answersKey = load_json(answersKey_path)
         answers = load_json(answers_path)
     except Exception as e:
         print(f'Erro de recuperação dos objetos JSON - {e}')
-    try:
+    try:    
+        logging.info("Iniciando a correção da prova...")
         response = grade_exam(
             answersKey=answersKey,  
             studentAnswers=answers
@@ -140,6 +145,7 @@ def main(answersKey_path, answers_path, output_path=None):
     except Exception as e:
         print(f'Erro na correção da prova - {e}')
     try:
+        logging.info("Gravando o resultado da correção...")
         if output_path:
             with open(output_path, 'w', encoding='utf-8') as f:
                 json.dump(response, f, ensure_ascii=False, indent=2)
